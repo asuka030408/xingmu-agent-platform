@@ -1,0 +1,64 @@
+@startuml
+title 一次请求：下周六上海的三个活动能同时交付吗？
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Microsoft YaHei
+skinparam shadowing false
+skinparam ArrowColor #366C5A
+skinparam ParticipantBorderColor #366C5A
+skinparam ParticipantBackgroundColor #F1F7F2
+skinparam SequenceLifeLineBorderColor #B9CEC1
+
+actor "员工" as employee
+participant "浏览器\nstatic/app.js" as browser
+participant "Flask\napp.py" as api
+participant "Agent\nagent.py" as agent
+participant "业务服务\nservices.py" as service
+participant "连接层\ndb.py" as db
+database "PostgreSQL\nxingmu_equipment" as pg
+collections "查询日志\nagent-queries.jsonl" as log
+
+employee -> browser : 输入示例问题并发送
+browser -> api : POST /api/ask\n{question: "下周六上海的三个活动能同时交付吗？"}
+activate api
+api -> api : 检查 JSON 与 500 字长度限制
+api -> agent : ask(question)
+activate agent
+agent -> agent : _question_day() 算出下周六
+
+loop 2 次：判断意图、生成计划时各调用一次
+  agent -> service : _project_from_question() → projects()
+  activate service
+  service -> db : connect()
+  db -> pg : SELECT 项目及需求数量
+  pg --> db : 项目列表
+  db --> service : 查询结果
+  service --> agent : 未找到项目编号或项目名称
+  deactivate service
+end
+
+agent -> service : plan_projects(day, city="上海")
+activate service
+service -> service : _planning_data()
+service -> db : connect()
+loop 7 次 SELECT
+  db -> pg : 项目、需求、设备、预订、维修、替代、线路
+  pg --> db : 业务数据
+end
+db --> service : 数据集合
+service -> service : 按优先级与时间窗排除占用\n比较本仓、跨仓、替代与外租成本
+service --> agent : 项目方案、外租缺口、估算成本
+deactivate service
+agent -> agent : 组装中文说明与数据来源
+agent --> api : {intent, answer, sources, data}
+deactivate agent
+api -> log : 追加时间、问题和意图
+api -> api : ready() 转换日期时间为字符串
+api --> browser : 200 JSON
+deactivate api
+browser -> browser : appendMessage() / renderPlan()
+browser --> employee : 显示回答和交付核算
+
+note over agent,pg
+  本次请求只读数据库；外租方案未写回预订。
+end note
+@enduml

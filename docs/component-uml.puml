@@ -1,0 +1,52 @@
+@startuml
+title 星幕设备 Agent 数据中台 · 组件 UML
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Microsoft YaHei
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam ArrowColor #366C5A
+skinparam ComponentBorderColor #366C5A
+skinparam ComponentBackgroundColor #F1F7F2
+skinparam DatabaseBorderColor #366C5A
+skinparam DatabaseBackgroundColor #F7F4EC
+
+actor "员工" as user
+
+package "浏览器" {
+  component "页面与交互\nindex.html / app.js" as ui
+}
+
+package "Python 应用" {
+  component "Flask API\nxingmu/app.py" as api
+  component "意图识别与回答\nxingmu/agent.py" as agent
+  component "排期与库存服务\nxingmu/services.py" as service
+  component "质量检查\nxingmu/quality.py" as quality
+  component "数据库连接\nxingmu/db.py" as db
+  component "配置与密码路径\nxingmu/config.py" as config
+}
+
+database "PostgreSQL\nxingmu_equipment" as pg
+artifact "查询日志\nlogs/agent-queries.jsonl" as audit
+component "演示数据初始化\nsetup_demo.py" as setup
+artifact "表结构\nschema.sql" as schema
+
+user --> ui : 自然语言提问
+ui --> api : HTTP / JSON
+api --> agent : POST /api/ask
+api --> service : GET /api/plan 等
+api --> quality : GET /api/quality
+agent --> service : 调用只读业务工具
+service --> db
+quality --> db
+db --> config : 读取连接配置
+db --> pg : SELECT（xingmu_app）
+api --> audit : 追加问题与意图
+setup --> schema : 读取 DDL
+setup --> pg : 管理员建库并填充演示数据
+
+note bottom of agent
+  当前版本使用规则路由，
+  不调用大模型，也不生成任意 SQL。
+end note
+@enduml

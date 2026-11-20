@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>星幕设备 · 项目保障中台</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><span class="brand-mark">✳</span><div><strong>星幕设备</strong><small>XINGMU OPERATIONS</small></div></div>
+      <div class="rail-label">项目保障中台</div>
+      <nav>
+        <a href="#overview" class="active">总览 <span>01</span></a>
+        <a href="#agent">业务 Agent <span>02</span></a>
+        <a href="#projects">项目排期 <span>03</span></a>
+        <a href="#inventory">设备库存 <span>04</span></a>
+        <a href="#booking">预订试用 <span>05</span></a>
+      </nav>
+      <div class="rail-bottom"><span class="online-dot"></span> 本机演示环境<br><small>数据均为虚构，仅供试用</small></div>
+    </aside>
+
+    <main>
+      <header class="topbar"><span>运营工作台 / 项目保障</span><span class="top-right" id="connection">连接中…</span></header>
+      <section class="hero" id="overview">
+        <div><div class="eyebrow">OPERATIONS INTELLIGENCE</div><h1>在活动开始前，<br><em>看清每一件设备。</em></h1><p>把项目需求、逐台设备、维修记录和跨仓调拨放到同一张计划里。</p></div>
+        <div class="hero-stamp"><span>DEMO DAY</span><strong id="demo-day">—</strong><small>待确认活动核算日期</small></div>
+      </section>
+      <section class="stats" aria-label="运营概览">
+        <div class="stat"><span>待确认项目</span><strong id="stat-projects">—</strong><small>当日活动</small></div>
+        <div class="stat"><span>在册设备</span><strong id="stat-assets">—</strong><small>逐台编号</small></div>
+        <div class="stat"><span>设备仓库</span><strong id="stat-warehouses">—</strong><small>可跨仓调拨</small></div>
+        <div class="stat alert"><span>维修中的设备</span><strong id="stat-maintenance">—</strong><small>不参与可用量</small></div>
+      </section>
+
+      <section class="section-grid" id="agent">
+        <div class="panel agent-panel">
+          <div class="panel-head"><div><div class="eyebrow">ASK THE OPERATIONS AGENT</div><h2>业务 Agent</h2></div><span class="badge">只读 · 本机运行</span></div>
+          <p class="panel-intro">用业务语言提问。Agent 会调用已定义的查询与排期工具，并显示核算依据。</p>
+          <div class="suggestions" id="suggestions"></div>
+          <div class="conversation" id="conversation" aria-live="polite"><div class="message assistant">你好。我可以帮你核算活动交付、查看设备可用量和维修记录。试试上面的示例问题。</div></div>
+          <form id="ask-form" class="ask-form"><input id="question" type="text" maxlength="500" placeholder="例如：下周六上海的三个活动能同时交付吗？" autocomplete="off" required><button type="submit" id="ask-button">发送 ↗</button></form>
+        </div>
+        <div class="panel plan-panel">
+          <div class="panel-head"><div><div class="eyebrow">DELIVERY CHECK</div><h2>交付核算</h2></div><button class="text-button" id="refresh-plan">重新核算 ↗</button></div>
+          <p class="panel-intro">占用时间包含备货与归还检查。外租是待确认建议，尚未写入订单。</p>
+          <div id="plan-content" class="plan-content"><div class="loading">正在核算项目…</div></div>
+        </div>
+      </section>
+
+      <section class="panel wide-panel" id="projects">
+        <div class="panel-head"><div><div class="eyebrow">PROJECT PIPELINE</div><h2>活动项目</h2></div><span class="muted">按活动开始时间排列</span></div>
+        <div class="table-wrap"><table><thead><tr><th>项目</th><th>地点</th><th>时间</th><th>设备需求</th><th>状态</th></tr></thead><tbody id="project-rows"></tbody></table></div>
+      </section>
+
+      <section class="panel wide-panel" id="inventory">
+        <div class="panel-head"><div><div class="eyebrow">EQUIPMENT INVENTORY</div><h2>设备可用量</h2></div><span class="muted">扣除已确认预订与维修；未扣除待确认项目</span></div>
+        <div class="table-wrap"><table><thead><tr><th>设备型号</th><th>类别</th><th>仓库</th><th>在册</th><th>当前可用</th></tr></thead><tbody id="inventory-rows"></tbody></table></div>
+      </section>
+      <section class="panel wide-panel" id="booking">
+        <div class="panel-head"><div><div class="eyebrow">BOOKING TRIAL</div><h2>设备预订试用</h2></div><span class="badge">确认后写入数据库</span></div>
+        <p class="panel-intro">从当前交付方案选择项目和设备。先预览占用时间，再明确确认；并发冲突会提示重新核算。</p>
+        <div class="booking-controls"><label>项目<select id="booking-project"></select></label><label>设备<select id="booking-asset"></select></label><button id="preview-booking" type="button">预览预订</button></div>
+        <div id="booking-preview" class="booking-preview" aria-live="polite">请选择项目和设备。</div>
+        <button id="confirm-booking" type="button" hidden>确认写入预订</button>
+      </section>
+      <footer>星幕设备 · Agent 数据中台演示版 <span>PostgreSQL + Python / Flask</span></footer>
+    </main>
+  </div>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
