@@ -6,6 +6,8 @@ import json
 from flask import Blueprint, jsonify, request
 
 from . import agent, quality, services
+from .agent import deepseek
+from .agent.errors import AgentError
 from .config import PROJECT_ROOT
 from .jsonutil import ready
 from .security import csrf_token
@@ -22,6 +24,12 @@ def browser_session():
 def health():
     return jsonify({"ok": True, "company": "星幕设备", "database": "xingmu_equipment",
                     "demo_day": ready(services.demo_day())})
+
+
+@read_routes.get("/api/agent-status")
+def agent_status():
+    return jsonify({"provider": "DeepSeek", "model": deepseek.MODEL,
+                    "configured": deepseek.configured(), "mode": "model_tool_calls"})
 
 
 @read_routes.get("/api/quality")
@@ -65,10 +73,14 @@ def ask():
     question = body.get("question", "")
     if not isinstance(question, str) or len(question) > 500:
         return jsonify({"error": "问题必须是 500 字以内的文本。"}), 400
-    result = agent.ask(question)
+    try:
+        result = agent.ask(question, body.get("history"))
+    except AgentError as exc:
+        return jsonify({"error": str(exc)}), exc.status
     log_file = PROJECT_ROOT / "logs" / "agent-queries.jsonl"
     log_file.parent.mkdir(exist_ok=True)
     with log_file.open("a", encoding="utf-8") as output:
         output.write(json.dumps({"time": datetime.now().isoformat(), "question": question,
-                                 "intent": result["intent"]}, ensure_ascii=False) + "\n")
+                                 "intent": result["intent"], "tools_used": result["tools_used"],
+                                 "model": result["model"]}, ensure_ascii=False) + "\n")
     return jsonify(ready(result))

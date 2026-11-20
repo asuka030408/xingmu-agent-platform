@@ -1,8 +1,11 @@
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from unittest.mock import patch
 
 from xingmu import agent, booking, quality, security, services
+from xingmu.agent import tools as agent_tools
+from xingmu.agent.errors import AgentError
 from xingmu.app import app
 from xingmu.db import booking_connection, connect
 from migrate_security import admin_connection
@@ -33,17 +36,52 @@ class XingmuDemoTests(unittest.TestCase):
         self.assertEqual(services.plan_projects(day=day, project_code="XM-2026-001")["projects"], [])
 
     def test_agent_and_api(self):
-        reply = agent.ask("下周六上海的三个活动能同时交付吗？")
-        self.assertEqual(reply["intent"], "project_plan")
-        self.assertIn("外租", reply["answer"])
+        def model(messages, tool_specs, tool_choice):
+            if tool_choice == "required":
+                return ({"content": None, "tool_calls": [{"id": "call_1", "type": "function",
+                        "function": {"name": "get_maintenance", "arguments": "{}"}}]}, "tool_calls")
+            self.assertEqual(messages[-1]["role"], "tool")
+            return ({"content": "演示日期有两台设备处于维修时间段。"}, "stop")
+
         client = app.test_client()
         self.assertEqual(client.get("/api/health").status_code, 200)
         token = client.get("/api/session").json["csrf_token"]
-        response = client.post("/api/ask", json={"question": "哪些设备正在维修？"},
-                               headers={"X-CSRF-Token": token})
+        with patch("xingmu.agent.runtime.deepseek.complete", side_effect=model):
+            response = client.post("/api/ask", json={"question": "哪些设备正在维修？"},
+                                   headers={"X-CSRF-Token": token})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json["intent"], "maintenance")
+        self.assertEqual(response.json["tools_used"], ["get_maintenance"])
         self.assertTrue(client.get("/api/quality").json["passed"])
+
+    def test_agent_model_selects_plan_tool(self):
+        def model(messages, tool_specs, tool_choice):
+            if tool_choice == "required":
+                self.assertTrue(any(tool["function"]["name"] == "get_delivery_plan" for tool in tool_specs))
+                return ({"content": None, "tool_calls": [{"id": "call_plan", "type": "function",
+                        "function": {"name": "get_delivery_plan", "arguments": '{"city":"上海"}'}}]}, "tool_calls")
+            self.assertIn('"external_units": 3', messages[-1]["content"])
+            return ({"content": "上海三个项目同时交付还需外租三件设备。"}, "stop")
+
+        with patch("xingmu.agent.runtime.deepseek.complete", side_effect=model):
+            reply = agent.ask("下周六上海的三个活动能同时交付吗？")
+        self.assertEqual(reply["intent"], "project_plan")
+        self.assertEqual(reply["data"]["external_units"], 3)
+        self.assertEqual(reply["tools_used"], ["get_delivery_plan"])
+
+    def test_agent_rejects_unlisted_tools_and_unverified_answers(self):
+        with self.assertRaises(ValueError):
+            agent_tools.execute("execute_sql", {"sql": "DELETE FROM assets"})
+        with patch("xingmu.agent.runtime.deepseek.complete",
+                   return_value=({"content": "没有查库也能回答。"}, "stop")):
+            with self.assertRaises(AgentError):
+                agent.ask("上海有多少设备？")
+
+    def test_agent_without_key_does_not_use_rule_fallback(self):
+        with patch("xingmu.agent.deepseek.deepseek_api_key", return_value=""):
+            with self.assertRaises(AgentError) as context:
+                agent.ask("上海库存有多少？")
+        self.assertEqual(context.exception.status, 503)
 
     def test_data_quality(self):
         self.assertTrue(quality.run_checks()["passed"])

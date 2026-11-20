@@ -36,10 +36,10 @@
 
       <section class="section-grid" id="agent">
         <div class="panel agent-panel">
-          <div class="panel-head"><div><div class="eyebrow">ASK THE OPERATIONS AGENT</div><h2>业务 Agent</h2></div><span class="badge">只读 · 本机运行</span></div>
-          <p class="panel-intro">用业务语言提问。Agent 会调用已定义的查询与排期工具，并显示核算依据。</p>
+          <div class="panel-head"><div><div class="eyebrow">ASK THE OPERATIONS AGENT</div><h2>业务 Agent</h2></div><span class="badge" id="agent-mode">DeepSeek · 只读工具</span></div>
+          <p class="panel-intro">用业务语言提问。问题会发送给 DeepSeek，由模型选择已定义的查询工具，再结合数据库结果回答；演示数据均为虚构。</p>
           <div class="suggestions" id="suggestions"></div>
-          <div class="conversation" id="conversation" aria-live="polite"><div class="message assistant">你好。我可以帮你核算活动交付、查看设备可用量和维修记录。试试上面的示例问题。</div></div>
+          <div class="conversation" id="conversation" aria-live="polite"><div class="message assistant">你好。我会通过 DeepSeek 选择只读业务工具，帮你核算活动交付、查看库存和维修记录。</div></div>
           <form id="ask-form" class="ask-form"><input id="question" type="text" maxlength="500" placeholder="例如：下周六上海的三个活动能同时交付吗？" autocomplete="off" required><button type="submit" id="ask-button">发送 ↗</button></form>
         </div>
         <div class="panel plan-panel">

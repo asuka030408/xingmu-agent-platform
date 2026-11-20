@@ -33,9 +33,13 @@ def audit(event, outcome, detail=""):
 
 def _limited():
     now = monotonic()
-    is_booking = request.path.startswith("/api/booking")
-    key = (request.remote_addr or "local", "booking" if is_booking else "read")
-    limit = 30 if is_booking else 120
+    if request.path.startswith("/api/booking"):
+        category, limit = "booking", 30
+    elif request.path == "/api/ask":
+        category, limit = "agent", 20
+    else:
+        category, limit = "read", 120
+    key = (request.remote_addr or "local", category)
     with _lock:
         bucket = _requests[key]
         while bucket and bucket[0] <= now - 60:

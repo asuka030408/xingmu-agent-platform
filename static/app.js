@@ -5,6 +5,7 @@ const money = (value) => `¥${Number(value || 0).toLocaleString('zh-CN')}`;
 let csrfToken = '';
 let currentPlan = null;
 let pendingProposal = null;
+let conversationHistory = [];
 
 async function getJson(path) {
   const response = await fetch(path);
@@ -39,14 +40,14 @@ function updateBookingAssets() {
   $('preview-booking').disabled = !assets.length;
 }
 
-function appendMessage(text, kind, sources=[]) {
+function appendMessage(text, kind, sources=[], tools=[]) {
   const box = document.createElement('div');
   box.className = `message ${kind}`;
   box.textContent = text;
   if (sources.length) {
     const source = document.createElement('span');
     source.className = 'sources';
-    source.textContent = `数据来源：${sources.join(' · ')}`;
+    source.textContent = `${tools.length ? `调用工具：${tools.join(' · ')}\n` : ''}数据来源：${sources.join(' · ')}`;
     box.appendChild(source);
   }
   $('conversation').appendChild(box);
@@ -80,8 +81,10 @@ async function ask(question) {
   $('question').value = '';
   $('ask-button').disabled = true;
   try {
-    const result = await postJson('/api/ask', {question});
-    appendMessage(result.answer, 'assistant', result.sources || []);
+    const result = await postJson('/api/ask', {question, history:conversationHistory});
+    appendMessage(result.answer, 'assistant', result.sources || [], result.tools_used || []);
+    conversationHistory.push({role:'user',content:question}, {role:'assistant',content:result.answer.slice(0, 500)});
+    conversationHistory = conversationHistory.slice(-6);
     if (result.intent === 'project_plan') renderPlan(result.data);
   } catch (error) { appendMessage(`暂时无法回答：${error.message}`, 'assistant'); }
   finally { $('ask-button').disabled = false; $('question').focus(); }
@@ -89,9 +92,10 @@ async function ask(question) {
 
 async function loadDashboard() {
   try {
-    const [overview, projects, inventory] = await Promise.all([
-      getJson('/api/overview'), getJson('/api/projects'), getJson('/api/inventory')
+    const [overview, projects, inventory, agentStatus] = await Promise.all([
+      getJson('/api/overview'), getJson('/api/projects'), getJson('/api/inventory'), getJson('/api/agent-status')
     ]);
+    $('agent-mode').textContent = agentStatus.configured ? `${agentStatus.model} · 只读工具` : 'DeepSeek Key 未配置';
     $('connection').textContent = '数据库已连接';
     $('demo-day').textContent = overview.day;
     $('stat-projects').textContent = overview.draft_projects;
